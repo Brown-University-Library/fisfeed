@@ -1,0 +1,6 @@
+*.pyc
+__pycache__/
+data/
+prep/config/
+prep/__pycache__/
+prep/testing/data/
