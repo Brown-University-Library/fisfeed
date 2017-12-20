@@ -25,26 +25,6 @@ class LookupFailure(str):
     def __new__(cls, val):
         return super().__new__(cls, val)
 
-def merge_maps(map1, map2):
-    merged = map1.copy()
-    merged.update(map2)
-    return merged
-
-def chunk_list(lst, size):
-    chunked = []
-    for i in range(0, len(lst), size):
-        chunked.append( lst[i:i + size] )
-    return chunked
-
-def get_ldap_attrs(ldapDict):
-    try:
-        return MappedID(
-            [ ldapDict['attributes']['brownbruid'][0],
-            ldapDict['attributes']['brownshortid'][0] ])
-    except:
-        return LookupFailure(ldapDict['attributes']['brownbruid'][0])
-
-
 class LdapClient:
     def __init__(self):
         self.sleeper = 1
@@ -80,6 +60,30 @@ class LdapClient:
     def close(self):
         self.conn.unbind()
 
+def merge_maps(map1, map2):
+    merged = map1.copy()
+    merged.update(map2)
+    return merged
+
+def chunk_list(lst, size):
+    chunked = []
+    for i in range(0, len(lst), size):
+        chunked.append( lst[i:i + size] )
+    return chunked
+
+def get_ldap_attrs(ldapDict):
+    try:
+        return MappedID(
+            [ ldapDict['attributes']['brownbruid'][0],
+            ldapDict['attributes']['brownshortid'][0] ])
+    except:
+        return LookupFailure(ldapDict['attributes']['brownbruid'][0])
+
+def log_map_changes(oldMap, newMap, logger):
+    diff = { k: v for k,v in oldMap.items() if k in newMap and v != newMap[k] }
+    for k,v in diff.items():
+        logger.error(
+            "{0}: shortid updated from {1} to {2}".format(k,v,newMap[k]))
 
 def process(bruidList, mappedIDs, logger):
     unknowns = [ b for b in bruidList if b not in mappedIDs ]
@@ -113,7 +117,9 @@ if __name__ == '__main__':
         description='Lookup faculty IDs in LDAP')
     parser.add_argument('id_source', action="store")
     parser.add_argument('id_map', action="store")
-    parser.add_argument('-r','--regenerate', action="store_true")
+    parser.add_argument('-o','--overwrite', action="store_true")
+    parser.add_argument('-u','--update', action="store_true")
+    parser.add_argument('-c','--changelog', action="store_true")
     args = parser.parse_args()
     logger = Logger()
 
@@ -123,12 +129,16 @@ if __name__ == '__main__':
     with open(args.id_map, 'r') as mapFile:
         id_map = json.load(mapFile)
 
-    if args.regenerate == True:
+    if args.overwrite == True:
         new_map = process(bruid_list, {}, logger)
-    else:
+    if args.update == True:
         new_map = process(bruid_list, id_map, logger)
 
+    if args.changelog == True: 
+        log_map_changes(id_map, new_map, logger)
+    if new_map == None:
+        new_map = id_map
+    with open(args.id_map, 'w') as mapFile:
+        json.dump(new_map, mapFile, sort_keys=True, indent=4)
+
     print(logger.log)
-    if new_map != None:   
-        with open(args.id_map, 'w') as mapFile:
-            json.dump(new_map, mapFile, sort_keys=True, indent=4)
