@@ -23,11 +23,11 @@ class Invalid:
     def __init__(self, line, func):
         self.error = "{0}: fails {1}".format(line, func.__name__)
 
-def validate(func, line, row, *args):
+def validate(func, lineNumber, row, *args):
     try:
         return Row(func(row, *args))
     except:
-        return Invalid(line, func)
+        return Invalid(lineNumber, func)
 
 def strip_whitespace(row):
     return [ d.replace('\n', '').replace('\r', '') for d in row ]
@@ -50,7 +50,8 @@ def header_check(head_row, fis_type):
 def validate_data(rows):
     validators = [ unicodify, strip_whitespace, nonify, bruid_check ]
     for func in validators:
-        rows = [ validate(func, line, row) for line, row in enumerate(rows) ]
+        rows = [ validate(func, line_num, row) for line_num, row
+                    in enumerate(rows) ]
     return rows
 
 def process(fis_type, rowIter, logger):
@@ -64,8 +65,8 @@ def process(fis_type, rowIter, logger):
     valid = [ row for row in validated if not isinstance(row, Invalid) ]
     for row in invalid:
         logger.warn(row.error)
-    out = [ checked_head ] + valid
-    return out
+    # out = [ checked_head ] + valid
+    return valid
 
 
 if __name__ == "__main__":
