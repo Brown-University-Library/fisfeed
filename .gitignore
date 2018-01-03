@@ -1,6 +1,6 @@
 *.pyc
 __pycache__/
-data/
-prep/config/
-prep/__pycache__/
-testing/data/
+fisfeed/data/
+fisfeed/config/
+fisfeed/prep/__pycache__/
+tests/data/

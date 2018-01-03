@@ -36,10 +36,10 @@ def overwrite_bruid(row, bruidIdx, idMap):
     except:
         return LookupFailure(bruid)
 
-def process(fis_type, rowIter, logger):
+def process(fis_type, rowIter, idMap, logger):
     indexes = config['FIS_BRUID_INDEX']
     checked = [ bruid_check(row, indexes[fis_type]) for row in rowIter ]
-    subbed = [ overwrite_bruid(row, indexes[fis_type], shortIdMap)
+    subbed = [ overwrite_bruid(row, indexes[fis_type], idMap)
                 for row in checked ]
     failed = [ row for row in subbed if isinstance(row, LookupFailure) ]
     mapped = [ row for row in subbed if not isinstance(row, LookupFailure) ]
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     logger = Logger()
     with open(file_path, 'r') as f:
         row_iter = csv.reader(f)
-        out = process(fis_type, row_iter, logger)    
+        out = process(fis_type, row_iter, id_map, logger)    
 
     with open(target_dir + file_name, 'w') as t:
         wrtr = csv.writer(t)
