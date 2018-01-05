@@ -3,7 +3,7 @@ import os
 import csv
 import re
 import collections
-from config.development import config
+# from config.development import config
 
 class Logger:
     def __init__(self):
@@ -19,33 +19,44 @@ class Row(tuple):
     def __new__(cls, iterable):
         return super().__new__(cls, iterable)
 
+class BruidFailure(str):
+    def __new__(cls, val):
+        return super().__new__(cls, val)
+
 class LookupFailure(str):
     def __new__(cls, val):
         return super().__new__(cls, val)
 
 def bruid_check(row, bruidIdx):
-    assert re.match('[0-9]{9}', row[bruidIdx])
-    return [ d for d in row ]
+    try:
+        assert re.match('[0-9]{9}', row[bruidIdx])
+        return [ d for d in row ]
+    except:
+        return BruidFailure(row[bruidIdx])
 
 def overwrite_bruid(row, bruidIdx, idMap):
     bruid = row[bruidIdx]
     try:
         ovrwrtn = [ r for r in row ]
-        ovrwrtn[bruidIdx] =  idMap[bruidIdx]
+        ovrwrtn[bruidIdx] =  idMap[bruid]
         return ovrwrtn
     except:
         return LookupFailure(bruid)
 
-def process(fis_type, rowIter, idMap, logger):
-    indexes = config['FIS_BRUID_INDEX']
-    checked = [ bruid_check(row, indexes[fis_type]) for row in rowIter ]
-    subbed = [ overwrite_bruid(row, indexes[fis_type], idMap)
-                for row in checked ]
+def process(dataType, rows, idMap, logger,cfg):
+    bruid_idx = cfg['FIS_BRUID_INDEX'][dataType]
+    checked = [ bruid_check(row, bruid_idx) for row in rows ]
+    print(checked[:10])
+    garbled = [ row for row in checked if isinstance(row, BruidFailure) ]
+    for row in garbled:
+        logger.warn("Bad bruid: {}".format(row))
+    subbed = [ overwrite_bruid(row, bruid_idx, idMap)
+                for row in checked if not isinstance(row, BruidFailure) ]
+    print(subbed[:10])
     failed = [ row for row in subbed if isinstance(row, LookupFailure) ]
     mapped = [ row for row in subbed if not isinstance(row, LookupFailure) ]
     for row in failed:
         logger.warn("No matching shortid for {}".format(row))
-    # out = [ checked_head ] + valid
     return mapped
 
 

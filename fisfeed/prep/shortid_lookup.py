@@ -4,18 +4,18 @@ import time
 import sys
 import csv
 import argparse
-from config.development import config
+# from config.development import config
 
 
 class Logger:
     def __init__(self):
-        self.log = ""
+        self._log = ""
 
     def info(self, msg):
-        self.log += '[INFO] ' + msg + '\n'
+        self._log += '[INFO] ' + msg + '\n'
 
     def error(self, msg):
-        self.log += '[ERROR] ' + msg + '\n'
+        self._log += '[ERROR] ' + msg + '\n'
 
 class MappedID(tuple):
     def __new__(cls, iterable):
@@ -26,12 +26,12 @@ class LookupFailure(str):
         return super().__new__(cls, val)
 
 class LdapClient:
-    def __init__(self):
-        self.sleeper = 1
-        self.server_addr = config['LDAP_SERVER']
-        self.user = config['LDAP_USER']
-        self.passw = config['LDAP_PASSWORD']
-        self.user_grp = config['LDAP_USERGROUP']
+    def __init__(self, cfg):
+        self.sleeper = cfg['LDAP_THROTTLE']
+        self.server_addr = cfg['LDAP_SERVER']
+        self.user = cfg['LDAP_USER']
+        self.passw = cfg['LDAP_PASSWORD']
+        self.user_grp = cfg['LDAP_USERGROUP']
         self.server = ldap3.Server(self.server_addr)
         self.conn = ldap3.Connection(
             self.server,
@@ -45,6 +45,7 @@ class LdapClient:
         ldap_data = []
         for chunk in chunked:
             time.sleep(self.sleeper)
+            print('Querying')
             or_str = '(|{0})'.format(''.join(chunk))
             resp = self.conn.search('ou=people,dc=brown,dc=edu',
                         or_str,
@@ -85,13 +86,15 @@ def log_map_changes(oldMap, newMap, logger):
         logger.error(
             "{0}: shortid updated from {1} to {2}".format(k,v,newMap[k]))
 
-def process(bruidList, mappedIDs, logger):
-    unknowns = [ b for b in bruidList if b not in mappedIDs ]
+def process(dataType, rows, mappedIDs, logger, cfg):
+    bruid_list = [ row[ cfg['FIS_BRUID_INDEX'][dataType] ]
+                    for row in rows ]
+    unknowns = [ b for b in bruid_list if b not in mappedIDs ]
     if unknowns == []:
         logger.info('No new IDs. Returning')
         return
     try:
-        client = LdapClient()
+        client = LdapClient(cfg)
         ldap_data = client.search_bruids(unknowns)
         client.close()
     except:

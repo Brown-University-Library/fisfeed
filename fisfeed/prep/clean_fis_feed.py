@@ -2,8 +2,7 @@ import sys
 import os
 import csv
 import re
-import collections
-from config.development import config
+# from config.development import config
 
 class Logger:
     def __init__(self):
@@ -42,9 +41,8 @@ def bruid_check(row):
     assert re.match('[0-9]{9}', row[1])
     return [ d for d in row ]
 
-def header_check(head_row, fis_type):
-    header_template = config['FIS_HEADERS']
-    assert head_row == header_template[fis_type]
+def header_check(head_row, expected):
+    assert head_row == expected
     return [ d for d in head_row ]
 
 def validate_data(rows):
@@ -54,13 +52,15 @@ def validate_data(rows):
                     in enumerate(rows) ]
     return rows
 
-def process(fis_type, rowIter, logger):
-    header = next(rowIter)
-    checked_head = validate(header_check, 0, Row(header), fis_type)
+def process(fis_type, rows, logger, cfg):
+    header = rows[0]
+    expected_headers = cfg['FIS_HEADERS'][fis_type]
+    checked_head = validate(
+        header_check, 0, Row(header), expected_headers)
     if isinstance(checked_head, Invalid):
         logger.error(checked_head.error)
         return []
-    validated = validate_data(rowIter)
+    validated = validate_data(rows[1:])
     invalid = [ row for row in validated if isinstance(row, Invalid) ]
     valid = [ row for row in validated if not isinstance(row, Invalid) ]
     for row in invalid:
