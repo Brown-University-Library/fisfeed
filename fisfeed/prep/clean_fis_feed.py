@@ -38,7 +38,7 @@ def unicodify(row):
     return [ str(d) for d in row ]
 
 def bruid_check(row):
-    assert re.match('[0-9]{9}', row[1])
+    assert re.match('^[0-9]{9}$', row[1])
     return [ d for d in row ]
 
 def header_check(head_row, expected):
