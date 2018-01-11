@@ -41,12 +41,13 @@ class TestFISIdMethods(unittest.TestCase):
 		data = [ 0, 'a', 1, 'b', 2 ]
 		id_mapping = { 1 : 0, 3: 1 }
 		out = map_ids.id_picker( data, id_mapping )
-		self.assertEqual( out[0], 'a')
-		self.assertEqual( out[1], 'b')
+		self.assertEqual( out, ('a', 'b') )
+		self.assertEqual( out[ id_mapping[data.index('a')] ], 'a')
+		self.assertEqual( out[ id_mapping[data.index('b')] ], 'b')
 		self.assertEqual( len(out), len(id_mapping) )
 
 	@patch('fisfeed.logging')
-	def test_update_id_map(self, mock_log):
+	def test_pull_ids(self, mock_log):
 		sample_data = [
 			[ '000000006','aroddam','000004','Roddom','Alfonse' ],
 			[ '000000008','yazwan','000003', 'Azwan','Yusef'],
@@ -57,12 +58,40 @@ class TestFISIdMethods(unittest.TestCase):
 			[ '000000007','', '000007' 'Thomas','Philip Michael']
 		]
 		idxs = { 'BRUID': 0, 'SHORTID' : 1}
+		out = map_ids.pull_ids(sample_data, idxs)
+		self.assertIn( ('000000008','yazwan'), out )
+		self.assertIn( ('000000009', None), out )
+		self.assertIn( ('000000007', None), out)
+		self.assertNotIn( ('020000','jamruss'), out )		
+
+	@patch('fisfeed.logging')
+	def test_update_id_map(self, mock_log):
+		sample_data = [
+			[ '000000006','aroddam' ],
+			[ '000000008','yazwan' ],
+			[ '000000002','rsimos' ],
+			[ '000000001', None ],
+			[ '000000007', None ],
+			[ '000000000', None ],
+			[ '000000017', 'lazarus' ]
+		]
+		idxs = { 'BRUID': 0, 'SHORTID' : 1}
 		sample_map = {	'000000006' : 'aroddam',
-						'000000001' : 'johnsond' }
-		out = map_ids.update_id_map(sample_data, idxs, sample_map)
-		self.assertIn('000000008', out)
+						'000000001' : 'johnsond',
+						'000000008' : 'azkaban',
+						'000000017'	: None,
+						'000000000'	: None }
+		out = map_ids.update_id_map(sample_data, sample_map)
+		self.assertIn('000000002', out)
+		self.assertEqual(out['000000008'], 'azkaban')
 		self.assertEqual(out['000000001'], 'johnsond')
 		self.assertEqual(out['000000007'], None)
+		self.assertEqual(out['000000000'], False)
+		self.assertEqual(out['000000017'], 'lazarus')
+
+		empty_map = {}
+		out = map_ids.update_id_map(sample_data, empty_map)
+		self.assertEqual(out, { k:v for k,v in sample_data })
 
 if __name__ == '__main__':
 	unittest.main()
